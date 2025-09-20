@@ -1,6 +1,31 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
+    <!-- Firebase SDK -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getAnalytics } from "firebase/analytics";
+// TODO: Add SDKs for Firebase products that you want to use
+// https://firebase.google.com/docs/web/setup#available-libraries
+
+// Your web app's Firebase configuration
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyB74SGKLTWSKSo0MBGPKGjHFnl4vOmSgVM",
+  authDomain: "price-comparison-tracker.firebaseapp.com",
+  projectId: "price-comparison-tracker",
+  storageBucket: "price-comparison-tracker.firebasestorage.app",
+  messagingSenderId: "397842635078",
+  appId: "1:397842635078:web:fb4c3bd9930d06fccaed47",
+  measurementId: "G-P0H1SDW091"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const analytics = getAnalytics(app);
+    </script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Price Comparison Tracker</title>
@@ -522,3 +547,4 @@
     </script>
 </body>
 </html>
+

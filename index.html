@@ -1,321 +1,214 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Price Comparison Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    AOS.init();
+    feather.replace();
 
-    <!-- Tailwind CSS -->
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- AOS for animations -->
-    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
-    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
-    <!-- Feather icons -->
-    <script src="https://unpkg.com/feather-icons"></script>
+    // Firebase config & init
+    const firebaseConfig = {
+        apiKey: "AIzaSyB74SGKLTWSKSo0MBGPKGjHFnl4vOmSgVM",
+        authDomain: "price-comparison-tracker.firebaseapp.com",
+        projectId: "price-comparison-tracker",
+        storageBucket: "price-comparison-tracker.appspot.com",
+        messagingSenderId: "397842635078",
+        appId: "1:397842635078:web:fb4c3bd9930d06fccaed47",
+        measurementId: "G-P0H1SDW091"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
 
-    <!-- Firebase SDKs -->
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+    // DOM elements
+    const addItemForm = document.getElementById('addItemForm');
+    const itemsTable = document.getElementById('itemsTable');
+    const itemCount = document.getElementById('itemCount');
+    const filterItem = document.getElementById('filterItem');
+    const filterStore = document.getElementById('filterStore');
+    const filterCheapest = document.getElementById('filterCheapest');
+    const resetFilters = document.getElementById('resetFilters');
+    const summaryContainer = document.getElementById('summaryContainer');
+    const editModal = document.getElementById('editModal');
+    const closeModal = document.getElementById('closeModal');
+    const editItemForm = document.getElementById('editItemForm');
+    const deleteItem = document.getElementById('deleteItem');
+    const quickAddBtn = document.getElementById('toggleQuickAdd');
 
-    <style>
-        .fade-in { animation: fadeIn 0.3s ease-in-out; }
-        @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-        .price-cell { position: relative; }
-        .best-price { background-color: rgba(74, 222, 128, 0.2); border-left: 4px solid #4ade80; }
-    </style>
+    let items = []; // local copy for rendering
 
-    <script>
-        // Firebase config
-        const firebaseConfig = {
-            apiKey: "AIzaSyB74SGKLTWSKSo0MBGPKGjHFnl4vOmSgVM",
-            authDomain: "price-comparison-tracker.firebaseapp.com",
-            projectId: "price-comparison-tracker",
-            storageBucket: "price-comparison-tracker.appspot.com",
-            messagingSenderId: "397842635078",
-            appId: "1:397842635078:web:fb4c3bd9930d06fccaed47",
-            measurementId: "G-P0H1SDW091"
-        };
-        // Initialize Firebase
-        firebase.initializeApp(firebaseConfig);
-        firebase.analytics();
-        const db = firebase.firestore();
-    </script>
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <div class="container mx-auto px-4 py-8">
-        <header class="mb-10 text-center">
-            <h1 class="text-4xl font-bold text-gray-800 mb-2">Price Comparison Tracker</h1>
-            <p class="text-gray-600">Track and compare prices across different stores</p>
-        </header>
-
-        <div class="grid md:grid-cols-2 gap-8 mb-10">
-            <!-- Add New Item Form -->
-            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-right">
-                <div class="flex justify-between items-center mb-4">
-                    <h2 class="text-xl font-semibold text-gray-800 flex items-center">
-                        <i data-feather="plus-circle" class="mr-2"></i> Add New Item
-                    </h2>
-                    <button id="toggleQuickAdd" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
-                        <i data-feather="zap" class="mr-1 w-4 h-4"></i> Quick Add
-                    </button>
-                </div>
-                <form id="addItemForm" class="space-y-4">
-                    <div>
-                        <label for="itemName" class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
-                        <input type="text" id="itemName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="storeName" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
-                        <input type="text" id="storeName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="itemPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                        <input type="number" step="0.01" id="itemPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="itemDate" class="block text-sm font-medium text-gray-700 mb-1">Date Purchased</label>
-                        <input type="date" id="itemDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="itemNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                        <textarea id="itemNotes" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                    </div>
-                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-                        <i data-feather="save" class="mr-2"></i> Save Item
-                    </button>
-                </form>
-            </div>
-
-            <!-- Filter Section -->
-            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-left">
-                <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
-                    <i data-feather="filter" class="mr-2"></i> Filter Items
-                </h2>
-                <div class="flex space-x-2 mb-4">
-                    <button id="sortCheapest" class="text-xs bg-green-100 hover:bg-green-200 text-green-800 py-1 px-2 rounded flex items-center">
-                        <i data-feather="arrow-down" class="mr-1 w-3 h-3"></i> Sort by Price
-                    </button>
-                    <button id="sortNewest" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 px-2 rounded flex items-center">
-                        <i data-feather="calendar" class="mr-1 w-3 h-3"></i> Sort by Date
-                    </button>
-                    <button id="sortStore" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 py-1 px-2 rounded flex items-center">
-                        <i data-feather="shopping-bag" class="mr-1 w-3 h-3"></i> Sort by Store
-                    </button>
-                </div>
-                <div class="space-y-4">
-                    <div>
-                        <label for="filterItem" class="block text-sm font-medium text-gray-700 mb-1">Search by Item</label>
-                        <input type="text" id="filterItem" placeholder="Type item name..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                    </div>
-                    <div>
-                        <label for="filterStore" class="block text-sm font-medium text-gray-700 mb-1">Filter by Store</label>
-                        <select id="filterStore" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                            <option value="">All Stores</option>
-                        </select>
-                    </div>
-                    <div class="flex items-center space-x-4">
-                        <button id="filterCheapest" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-                            <i data-feather="dollar-sign" class="mr-2"></i> Show Cheapest
-                        </button>
-                        <button id="resetFilters" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
-                            <i data-feather="refresh-ccw" class="mr-2"></i> Reset
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <!-- Items Table -->
-        <div class="bg-white rounded-xl shadow-md overflow-hidden" data-aos="fade-up">
-            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
-                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
-                    <i data-feather="list" class="mr-2"></i> Your Items
-                </h2>
-                <div class="text-sm text-gray-500">
-                    <span id="itemCount">0</span> items recorded
-                </div>
-            </div>
-            <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
-                    <thead class="bg-gray-50">
-                        <tr>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
-                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
-                        </tr>
-                    </thead>
-                    <tbody id="itemsTable" class="bg-white divide-y divide-gray-200"></tbody>
-                </table>
-            </div>
-        </div>
-    </div>
-
-    <!-- Edit Modal -->
-    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
-        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
-            <div class="flex justify-between items-center mb-4">
-                <h3 class="text-lg font-semibold text-gray-800">Edit Item</h3>
-                <button id="closeModal" class="text-gray-500 hover:text-gray-700">
-                    <i data-feather="x"></i>
-                </button>
-            </div>
-            <form id="editItemForm" class="space-y-4">
-                <input type="hidden" id="editItemId">
-                <div>
-                    <label for="editItemName" class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
-                    <input type="text" id="editItemName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="editStoreName" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
-                    <input type="text" id="editStoreName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="editItemPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
-                    <input type="number" step="0.01" id="editItemPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="editItemDate" class="block text-sm font-medium text-gray-700 mb-1">Date Purchased</label>
-                    <input type="date" id="editItemDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
-                </div>
-                <div>
-                    <label for="editItemNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
-                    <textarea id="editItemNotes" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
-                </div>
-                <div class="flex space-x-3">
-                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200">Save Changes</button>
-                    <button type="button" id="deleteItem" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition duration-200">Delete</button>
-                </div>
-            </form>
-        </div>
-    </div>
-
-    <script>
-        document.addEventListener('DOMContentLoaded', () => {
-            AOS.init();
-            feather.replace();
-
-            const addItemForm = document.getElementById('addItemForm');
-            const itemsTable = document.getElementById('itemsTable');
-            const itemCount = document.getElementById('itemCount');
-            const filterItem = document.getElementById('filterItem');
-            const filterStore = document.getElementById('filterStore');
-            const filterCheapest = document.getElementById('filterCheapest');
-            const resetFilters = document.getElementById('resetFilters');
-            const editModal = document.getElementById('editModal');
-            const closeModal = document.getElementById('closeModal');
-            const editItemForm = document.getElementById('editItemForm');
-            const deleteItem = document.getElementById('deleteItem');
-
-            let items = [];
-
-            // --- Firestore real-time sync ---
-            db.collection('items').orderBy('date', 'desc').onSnapshot(snapshot => {
-                items = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-                renderItems();
-                renderStoreFilter();
-            });
-
-            // --- Add item ---
-            addItemForm.addEventListener('submit', async e => {
-                e.preventDefault();
-                const newItem = {
-                    name: document.getElementById('itemName').value.trim(),
-                    store: document.getElementById('storeName').value.trim(),
-                    price: parseFloat(document.getElementById('itemPrice').value),
-                    date: document.getElementById('itemDate').value || new Date().toISOString().split('T')[0],
-                    notes: document.getElementById('itemNotes').value.trim()
-                };
-                await db.collection('items').add(newItem);
-                addItemForm.reset();
-            });
-
-            // --- Delete & Edit handled via table delegation ---
-            itemsTable.addEventListener('click', async e => {
-                const btn = e.target.closest('button');
-                if (!btn) return;
-                const id = btn.dataset.id;
-                if (btn.classList.contains('delete-btn')) {
-                    if (confirm('Delete this item?')) {
-                        await db.collection('items').doc(id).delete();
-                    }
-                } else if (btn.classList.contains('edit-btn')) {
-                    const item = items.find(i => i.id === id);
-                    if (item) {
-                        document.getElementById('editItemId').value = item.id;
-                        document.getElementById('editItemName').value = item.name;
-                        document.getElementById('editStoreName').value = item.store;
-                        document.getElementById('editItemPrice').value = item.price;
-                        document.getElementById('editItemDate').value = item.date;
-                        document.getElementById('editItemNotes').value = item.notes || '';
-                        editModal.classList.remove('hidden');
-                    }
-                }
-            });
-
-            editItemForm.addEventListener('submit', async e => {
-                e.preventDefault();
-                const id = document.getElementById('editItemId').value;
-                await db.collection('items').doc(id).update({
-                    name: document.getElementById('editItemName').value.trim(),
-                    store: document.getElementById('editStoreName').value.trim(),
-                    price: parseFloat(document.getElementById('editItemPrice').value),
-                    date: document.getElementById('editItemDate').value,
-                    notes: document.getElementById('editItemNotes').value.trim()
-                });
-                editModal.classList.add('hidden');
-            });
-
-            deleteItem.addEventListener('click', async () => {
-                const id = document.getElementById('editItemId').value;
-                if (confirm('Delete this item?')) {
-                    await db.collection('items').doc(id).delete();
-                    editModal.classList.add('hidden');
-                }
-            });
-
-            closeModal.addEventListener('click', () => editModal.classList.add('hidden'));
-
-            // --- Render ---
-            function renderItems(filterText = '') {
-                itemsTable.innerHTML = '';
-                const filtered = items.filter(item =>
-                    item.name.toLowerCase().includes(filterText.toLowerCase()) ||
-                    item.store.toLowerCase().includes(filterText.toLowerCase())
-                );
-                itemCount.textContent = filtered.length || 0;
-                if (!filtered.length) {
-                    itemsTable.innerHTML = `<tr><td colspan="6" class="text-center p-4 text-gray-500">No items yet</td></tr>`;
-                    return;
-                }
-                filtered.forEach(item => {
-                    const row = document.createElement('tr');
-                    row.classList.add('fade-in');
-                    row.innerHTML = `
-                        <td class="px-6 py-4">${item.name}</td>
-                        <td class="px-6 py-4">${item.store}</td>
-                        <td class="px-6 py-4">$${item.price.toFixed(2)}</td>
-                        <td class="px-6 py-4">${item.date}</td>
-                        <td class="px-6 py-4">${item.notes || '-'}</td>
-                        <td class="px-6 py-4 space-x-2">
-                            <button data-id="${item.id}" class="edit-btn text-blue-600 hover:text-blue-800">Edit</button>
-                            <button data-id="${item.id}" class="delete-btn text-red-600 hover:text-red-800">Delete</button>
-                        </td>
-                    `;
-                    itemsTable.appendChild(row);
-                });
-            }
-
-            function renderStoreFilter() {
-                const stores = [...new Set(items.map(i => i.store))];
-                filterStore.innerHTML = `<option value="">All Stores</option>` + stores.map(s => `<option value="${s}">${s}</option>`).join('');
-            }
-
-            filterItem.addEventListener('input', e => renderItems(e.target.value));
+    // --- Firestore onSnapshot ---
+    db.collection('items').onSnapshot(snapshot => {
+        items = [];
+        snapshot.forEach(doc => {
+            items.push({ id: doc.id, ...doc.data() });
         });
-    </script>
-</body>
-</html>
+        renderItems();
+    });
+
+    // --- Render functions ---
+    function renderItems(filteredItems = items) {
+        itemsTable.innerHTML = '';
+        itemCount.textContent = filteredItems.length;
+
+        if (filteredItems.length === 0) {
+            itemsTable.innerHTML = `
+                <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No items found</td></tr>
+            `;
+            return;
+        }
+
+        const bestPrices = {};
+        filteredItems.forEach(item => {
+            if (!bestPrices[item.name] || item.price < bestPrices[item.name].price) {
+                bestPrices[item.name] = item;
+            }
+        });
+
+        filteredItems.forEach(item => {
+            const isBestPrice = bestPrices[item.name] && bestPrices[item.name].price === item.price;
+            const row = document.createElement('tr');
+            row.className = 'fade-in' + (isBestPrice ? ' best-price' : '');
+            row.innerHTML = `
+                <td class="px-6 py-4 font-medium">${item.name}</td>
+                <td class="px-6 py-4">${item.store}</td>
+                <td class="px-6 py-4 price-cell">$${item.price.toFixed(2)}
+                    ${isBestPrice ? '<span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Best</span>' : ''}
+                </td>
+                <td class="px-6 py-4">${item.date || '-'}</td>
+                <td class="px-6 py-4 max-w-xs truncate">${item.notes || '-'}</td>
+                <td class="px-6 py-4 text-right">
+                    <button class="edit-btn" data-id="${item.id}" aria-label="Edit ${item.name}">
+                        <i data-feather="edit" class="w-4 h-4"></i>
+                    </button>
+                    <button class="delete-btn" data-id="${item.id}" aria-label="Delete ${item.name}">
+                        <i data-feather="trash-2" class="w-4 h-4"></i>
+                    </button>
+                </td>
+            `;
+            itemsTable.appendChild(row);
+        });
+
+        feather.replace();
+        addEditDeleteListeners();
+        renderStoreFilter();
+        renderSummary();
+    }
+
+    function renderStoreFilter() {
+        const stores = [...new Set(items.map(i => i.store))];
+        filterStore.innerHTML = '<option value="">All Stores</option>';
+        stores.forEach(store => {
+            const option = document.createElement('option');
+            option.value = store;
+            option.textContent = store;
+            filterStore.appendChild(option);
+        });
+    }
+
+    function renderSummary() {
+        if (!items.length) { summaryContainer.innerHTML = '<p class="text-gray-500">Add items to see price comparisons</p>'; return; }
+        const itemsByName = {};
+        items.forEach(i => { if (!itemsByName[i.name]) itemsByName[i.name] = []; itemsByName[i.name].push(i); });
+        summaryContainer.innerHTML = '';
+        Object.entries(itemsByName).forEach(([name, arr]) => {
+            const sorted = arr.sort((a,b)=>a.price-b.price);
+            const cheapest = sorted[0], expensive = sorted[sorted.length-1];
+            const diff = expensive.price - cheapest.price;
+            const card = document.createElement('div');
+            card.className='bg-white border border-gray-200 rounded-lg p-4 shadow-sm fade-in';
+            card.innerHTML = `
+                <h3 class="font-semibold text-lg mb-2">${name}</h3>
+                <div>Best: $${cheapest.price.toFixed(2)} at ${cheapest.store}</div>
+                <div>Price range: $${cheapest.price.toFixed(2)} - $${expensive.price.toFixed(2)} ${diff>0?`(+${diff.toFixed(2)})`:''}</div>
+            `;
+            summaryContainer.appendChild(card);
+        });
+    }
+
+    // --- Firestore operations ---
+    async function addItem(item) {
+        try { await db.collection('items').add(item); } 
+        catch(e){ alert('Error adding item: '+e.message); }
+    }
+
+    async function updateItem(id, data) {
+        try { await db.collection('items').doc(id).update(data); } 
+        catch(e){ alert('Error updating item: '+e.message); }
+    }
+
+    async function deleteItemFirestore(id) {
+        try { await db.collection('items').doc(id).delete(); } 
+        catch(e){ alert('Error deleting item: '+e.message); }
+    }
+
+    // --- Event listeners ---
+    addItemForm.addEventListener('submit', e => {
+        e.preventDefault();
+        const newItem = {
+            name: document.getElementById('itemName').value.trim(),
+            store: document.getElementById('storeName').value.trim(),
+            price: parseFloat(document.getElementById('itemPrice').value),
+            date: document.getElementById('itemDate').value || new Date().toISOString().split('T')[0],
+            notes: document.getElementById('itemNotes').value.trim()
+        };
+        addItem(newItem);
+        addItemForm.reset();
+    });
+
+    filterItem.addEventListener('input', filterItems);
+    filterStore.addEventListener('change', filterItems);
+    filterCheapest.addEventListener('click', () => {
+        const grouped = {};
+        items.forEach(i => { if(!grouped[i.name]||i.price<grouped[i.name].price) grouped[i.name]=i; });
+        renderItems(Object.values(grouped));
+    });
+    resetFilters.addEventListener('click', ()=>{
+        filterItem.value=''; filterStore.value=''; renderItems();
+    });
+
+    function filterItems(){
+        const search = filterItem.value.toLowerCase();
+        const store = filterStore.value;
+        const filtered = items.filter(i=>i.name.toLowerCase().includes(search)&&(!store||i.store===store));
+        renderItems(filtered);
+    }
+
+    function addEditDeleteListeners() {
+        document.querySelectorAll('.edit-btn').forEach(btn=>{
+            btn.onclick=()=>{
+                const id=btn.dataset.id;
+                const item=items.find(i=>i.id===id);
+                if(!item) return;
+                document.getElementById('editItemId').value=id;
+                document.getElementById('editItemName').value=item.name;
+                document.getElementById('editStoreName').value=item.store;
+                document.getElementById('editItemPrice').value=item.price;
+                document.getElementById('editItemDate').value=item.date;
+                document.getElementById('editItemNotes').value=item.notes||'';
+                editModal.classList.remove('hidden');
+            };
+        });
+
+        document.querySelectorAll('.delete-btn').forEach(btn=>{
+            btn.onclick=()=>{ if(confirm('Delete item?')) deleteItemFirestore(btn.dataset.id); };
+        });
+    }
+
+    closeModal.addEventListener('click', ()=> editModal.classList.add('hidden'));
+
+    editItemForm.addEventListener('submit', e=>{
+        e.preventDefault();
+        const id=document.getElementById('editItemId').value;
+        const data={
+            name:document.getElementById('editItemName').value.trim(),
+            store:document.getElementById('editStoreName').value.trim(),
+            price:parseFloat(document.getElementById('editItemPrice').value),
+            date:document.getElementById('editItemDate').value||new Date().toISOString().split('T')[0],
+            notes:document.getElementById('editItemNotes').value.trim()
+        };
+        updateItem(id,data);
+        editModal.classList.add('hidden');
+    });
+
+    quickAddBtn.addEventListener('click', ()=>{ addItemForm.scrollIntoView({behavior:'smooth'}); });
+
+});
+</script>

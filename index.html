@@ -1,214 +1,302 @@
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script>
-document.addEventListener('DOMContentLoaded', function() {
-    AOS.init();
-    feather.replace();
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Comparison Tracker</title>
 
-    // Firebase config & init
-    const firebaseConfig = {
-        apiKey: "AIzaSyB74SGKLTWSKSo0MBGPKGjHFnl4vOmSgVM",
-        authDomain: "price-comparison-tracker.firebaseapp.com",
-        projectId: "price-comparison-tracker",
-        storageBucket: "price-comparison-tracker.appspot.com",
-        messagingSenderId: "397842635078",
-        appId: "1:397842635078:web:fb4c3bd9930d06fccaed47",
-        measurementId: "G-P0H1SDW091"
-    };
-    firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
 
-    // DOM elements
-    const addItemForm = document.getElementById('addItemForm');
-    const itemsTable = document.getElementById('itemsTable');
-    const itemCount = document.getElementById('itemCount');
-    const filterItem = document.getElementById('filterItem');
-    const filterStore = document.getElementById('filterStore');
-    const filterCheapest = document.getElementById('filterCheapest');
-    const resetFilters = document.getElementById('resetFilters');
-    const summaryContainer = document.getElementById('summaryContainer');
-    const editModal = document.getElementById('editModal');
-    const closeModal = document.getElementById('closeModal');
-    const editItemForm = document.getElementById('editItemForm');
-    const deleteItem = document.getElementById('deleteItem');
-    const quickAddBtn = document.getElementById('toggleQuickAdd');
+    <!-- AOS -->
+    <link href="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/aos@2.3.4/dist/aos.js"></script>
 
-    let items = []; // local copy for rendering
+    <!-- Feather Icons -->
+    <script src="https://unpkg.com/feather-icons"></script>
 
-    // --- Firestore onSnapshot ---
-    db.collection('items').onSnapshot(snapshot => {
-        items = [];
-        snapshot.forEach(doc => {
-            items.push({ id: doc.id, ...doc.data() });
-        });
-        renderItems();
-    });
+    <!-- Firebase -->
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 
-    // --- Render functions ---
-    function renderItems(filteredItems = items) {
-        itemsTable.innerHTML = '';
-        itemCount.textContent = filteredItems.length;
+    <style>
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+        .best-price { background-color: #e6fffa; }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen p-4">
 
-        if (filteredItems.length === 0) {
-            itemsTable.innerHTML = `
-                <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No items found</td></tr>
-            `;
-            return;
-        }
+    <header class="mb-6">
+        <h1 class="text-3xl font-bold text-center">Price Comparison Tracker</h1>
+    </header>
 
-        const bestPrices = {};
-        filteredItems.forEach(item => {
-            if (!bestPrices[item.name] || item.price < bestPrices[item.name].price) {
-                bestPrices[item.name] = item;
-            }
-        });
+    <!-- Filters -->
+    <div class="flex flex-wrap gap-2 mb-4">
+        <input id="filterItem" type="text" placeholder="Search by item" class="border p-2 rounded flex-1">
+        <select id="filterStore" class="border p-2 rounded"></select>
+        <button id="filterCheapest" class="bg-green-500 text-white px-4 py-2 rounded">Cheapest</button>
+        <button id="resetFilters" class="bg-gray-300 px-4 py-2 rounded">Reset</button>
+    </div>
 
-        filteredItems.forEach(item => {
-            const isBestPrice = bestPrices[item.name] && bestPrices[item.name].price === item.price;
-            const row = document.createElement('tr');
-            row.className = 'fade-in' + (isBestPrice ? ' best-price' : '');
-            row.innerHTML = `
-                <td class="px-6 py-4 font-medium">${item.name}</td>
-                <td class="px-6 py-4">${item.store}</td>
-                <td class="px-6 py-4 price-cell">$${item.price.toFixed(2)}
-                    ${isBestPrice ? '<span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Best</span>' : ''}
-                </td>
-                <td class="px-6 py-4">${item.date || '-'}</td>
-                <td class="px-6 py-4 max-w-xs truncate">${item.notes || '-'}</td>
-                <td class="px-6 py-4 text-right">
-                    <button class="edit-btn" data-id="${item.id}" aria-label="Edit ${item.name}">
-                        <i data-feather="edit" class="w-4 h-4"></i>
-                    </button>
-                    <button class="delete-btn" data-id="${item.id}" aria-label="Delete ${item.name}">
-                        <i data-feather="trash-2" class="w-4 h-4"></i>
-                    </button>
-                </td>
-            `;
-            itemsTable.appendChild(row);
-        });
+    <!-- Table -->
+    <div class="overflow-x-auto mb-6">
+        <table class="min-w-full bg-white border" id="itemsTable">
+            <thead>
+                <tr class="bg-gray-200">
+                    <th class="px-6 py-3">Item</th>
+                    <th class="px-6 py-3">Store</th>
+                    <th class="px-6 py-3">Price</th>
+                    <th class="px-6 py-3">Date</th>
+                    <th class="px-6 py-3">Notes</th>
+                    <th class="px-6 py-3 text-right">Actions</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No items yet</td></tr>
+            </tbody>
+        </table>
+    </div>
 
-        feather.replace();
-        addEditDeleteListeners();
-        renderStoreFilter();
-        renderSummary();
-    }
+    <!-- Item count -->
+    <p class="mb-4" id="itemCount">0 items</p>
 
-    function renderStoreFilter() {
-        const stores = [...new Set(items.map(i => i.store))];
-        filterStore.innerHTML = '<option value="">All Stores</option>';
-        stores.forEach(store => {
-            const option = document.createElement('option');
-            option.value = store;
-            option.textContent = store;
-            filterStore.appendChild(option);
-        });
-    }
+    <!-- Quick Add -->
+    <button id="toggleQuickAdd" class="bg-blue-500 text-white px-4 py-2 rounded mb-4">Quick Add</button>
 
-    function renderSummary() {
-        if (!items.length) { summaryContainer.innerHTML = '<p class="text-gray-500">Add items to see price comparisons</p>'; return; }
-        const itemsByName = {};
-        items.forEach(i => { if (!itemsByName[i.name]) itemsByName[i.name] = []; itemsByName[i.name].push(i); });
-        summaryContainer.innerHTML = '';
-        Object.entries(itemsByName).forEach(([name, arr]) => {
-            const sorted = arr.sort((a,b)=>a.price-b.price);
-            const cheapest = sorted[0], expensive = sorted[sorted.length-1];
-            const diff = expensive.price - cheapest.price;
-            const card = document.createElement('div');
-            card.className='bg-white border border-gray-200 rounded-lg p-4 shadow-sm fade-in';
-            card.innerHTML = `
-                <h3 class="font-semibold text-lg mb-2">${name}</h3>
-                <div>Best: $${cheapest.price.toFixed(2)} at ${cheapest.store}</div>
-                <div>Price range: $${cheapest.price.toFixed(2)} - $${expensive.price.toFixed(2)} ${diff>0?`(+${diff.toFixed(2)})`:''}</div>
-            `;
-            summaryContainer.appendChild(card);
-        });
-    }
+    <!-- Add Item Form -->
+    <form id="addItemForm" class="bg-white p-4 rounded shadow mb-6 grid gap-2 max-w-md">
+        <input id="itemName" type="text" placeholder="Item Name" required class="border p-2 rounded">
+        <input id="storeName" type="text" placeholder="Store Name" required class="border p-2 rounded">
+        <input id="itemPrice" type="number" placeholder="Price" step="0.01" required class="border p-2 rounded">
+        <input id="itemDate" type="date" class="border p-2 rounded">
+        <input id="itemNotes" type="text" placeholder="Notes" class="border p-2 rounded">
+        <button type="submit" class="bg-green-500 text-white px-4 py-2 rounded">Add Item</button>
+    </form>
 
-    // --- Firestore operations ---
-    async function addItem(item) {
-        try { await db.collection('items').add(item); } 
-        catch(e){ alert('Error adding item: '+e.message); }
-    }
+    <!-- Summary -->
+    <div id="summaryContainer" class="grid gap-4"></div>
 
-    async function updateItem(id, data) {
-        try { await db.collection('items').doc(id).update(data); } 
-        catch(e){ alert('Error updating item: '+e.message); }
-    }
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center hidden">
+        <div class="bg-white p-6 rounded shadow max-w-md w-full">
+            <button id="closeModal" class="float-right">✖</button>
+            <form id="editItemForm" class="grid gap-2 mt-4">
+                <input type="hidden" id="editItemId">
+                <input id="editItemName" type="text" placeholder="Item Name" required class="border p-2 rounded">
+                <input id="editStoreName" type="text" placeholder="Store Name" required class="border p-2 rounded">
+                <input id="editItemPrice" type="number" placeholder="Price" step="0.01" required class="border p-2 rounded">
+                <input id="editItemDate" type="date" class="border p-2 rounded">
+                <input id="editItemNotes" type="text" placeholder="Notes" class="border p-2 rounded">
+                <button type="submit" class="bg-blue-500 text-white px-4 py-2 rounded">Update Item</button>
+            </form>
+        </div>
+    </div>
 
-    async function deleteItemFirestore(id) {
-        try { await db.collection('items').doc(id).delete(); } 
-        catch(e){ alert('Error deleting item: '+e.message); }
-    }
+    <!-- Scripts -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log('JS loaded');
+            AOS.init();
+            feather.replace();
 
-    // --- Event listeners ---
-    addItemForm.addEventListener('submit', e => {
-        e.preventDefault();
-        const newItem = {
-            name: document.getElementById('itemName').value.trim(),
-            store: document.getElementById('storeName').value.trim(),
-            price: parseFloat(document.getElementById('itemPrice').value),
-            date: document.getElementById('itemDate').value || new Date().toISOString().split('T')[0],
-            notes: document.getElementById('itemNotes').value.trim()
-        };
-        addItem(newItem);
-        addItemForm.reset();
-    });
-
-    filterItem.addEventListener('input', filterItems);
-    filterStore.addEventListener('change', filterItems);
-    filterCheapest.addEventListener('click', () => {
-        const grouped = {};
-        items.forEach(i => { if(!grouped[i.name]||i.price<grouped[i.name].price) grouped[i.name]=i; });
-        renderItems(Object.values(grouped));
-    });
-    resetFilters.addEventListener('click', ()=>{
-        filterItem.value=''; filterStore.value=''; renderItems();
-    });
-
-    function filterItems(){
-        const search = filterItem.value.toLowerCase();
-        const store = filterStore.value;
-        const filtered = items.filter(i=>i.name.toLowerCase().includes(search)&&(!store||i.store===store));
-        renderItems(filtered);
-    }
-
-    function addEditDeleteListeners() {
-        document.querySelectorAll('.edit-btn').forEach(btn=>{
-            btn.onclick=()=>{
-                const id=btn.dataset.id;
-                const item=items.find(i=>i.id===id);
-                if(!item) return;
-                document.getElementById('editItemId').value=id;
-                document.getElementById('editItemName').value=item.name;
-                document.getElementById('editStoreName').value=item.store;
-                document.getElementById('editItemPrice').value=item.price;
-                document.getElementById('editItemDate').value=item.date;
-                document.getElementById('editItemNotes').value=item.notes||'';
-                editModal.classList.remove('hidden');
+            // Firebase config & init
+            const firebaseConfig = {
+                apiKey: "AIzaSyB74SGKLTWSKSo0MBGPKGjHFnl4vOmSgVM",
+                authDomain: "price-comparison-tracker.firebaseapp.com",
+                projectId: "price-comparison-tracker",
+                storageBucket: "price-comparison-tracker.appspot.com",
+                messagingSenderId: "397842635078",
+                appId: "1:397842635078:web:fb4c3bd9930d06fccaed47",
+                measurementId: "G-P0H1SDW091"
             };
+            firebase.initializeApp(firebaseConfig);
+            const db = firebase.firestore();
+
+            // DOM elements
+            const addItemForm = document.getElementById('addItemForm');
+            const itemsTable = document.getElementById('itemsTable').querySelector('tbody');
+            const itemCount = document.getElementById('itemCount');
+            const filterItem = document.getElementById('filterItem');
+            const filterStore = document.getElementById('filterStore');
+            const filterCheapest = document.getElementById('filterCheapest');
+            const resetFilters = document.getElementById('resetFilters');
+            const summaryContainer = document.getElementById('summaryContainer');
+            const editModal = document.getElementById('editModal');
+            const closeModal = document.getElementById('closeModal');
+            const editItemForm = document.getElementById('editItemForm');
+            const quickAddBtn = document.getElementById('toggleQuickAdd');
+
+            let items = [];
+
+            // Firestore onSnapshot
+            db.collection('items').onSnapshot(snapshot => {
+                items = [];
+                snapshot.forEach(doc => {
+                    items.push({ id: doc.id, ...doc.data() });
+                });
+                renderItems();
+            }, error => { console.error('Firestore error:', error); });
+
+            function renderItems(filteredItems = items) {
+                itemsTable.innerHTML = '';
+                itemCount.textContent = `${filteredItems.length} items`;
+
+                if (filteredItems.length === 0) {
+                    itemsTable.innerHTML = `<tr><td colspan="6" class="px-6 py-4 text-center text-gray-500">No items found</td></tr>`;
+                    summaryContainer.innerHTML = '<p class="text-gray-500">Add items to see price comparisons</p>';
+                    return;
+                }
+
+                const bestPrices = {};
+                filteredItems.forEach(item => {
+                    if (!bestPrices[item.name] || item.price < bestPrices[item.name].price) bestPrices[item.name] = item;
+                });
+
+                filteredItems.forEach(item => {
+                    const isBestPrice = bestPrices[item.name] && bestPrices[item.name].price === item.price;
+                    const row = document.createElement('tr');
+                    row.className = 'fade-in' + (isBestPrice ? ' best-price' : '');
+                    row.innerHTML = `
+                        <td class="px-6 py-4 font-medium">${item.name}</td>
+                        <td class="px-6 py-4">${item.store}</td>
+                        <td class="px-6 py-4 price-cell">$${item.price.toFixed(2)}
+                            ${isBestPrice ? '<span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Best</span>' : ''}
+                        </td>
+                        <td class="px-6 py-4">${item.date || '-'}</td>
+                        <td class="px-6 py-4 max-w-xs truncate">${item.notes || '-'}</td>
+                        <td class="px-6 py-4 text-right">
+                            <button class="edit-btn" data-id="${item.id}" aria-label="Edit ${item.name}">
+                                <i data-feather="edit" class="w-4 h-4"></i>
+                            </button>
+                            <button class="delete-btn" data-id="${item.id}" aria-label="Delete ${item.name}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    itemsTable.appendChild(row);
+                });
+
+                feather.replace();
+                addEditDeleteListeners();
+                renderStoreFilter();
+                renderSummary();
+            }
+
+            function renderStoreFilter() {
+                const stores = [...new Set(items.map(i => i.store))];
+                filterStore.innerHTML = '<option value="">All Stores</option>';
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store;
+                    option.textContent = store;
+                    filterStore.appendChild(option);
+                });
+            }
+
+            function renderSummary() {
+                if (!items.length) return;
+                const itemsByName = {};
+                items.forEach(i => { if (!itemsByName[i.name]) itemsByName[i.name] = []; itemsByName[i.name].push(i); });
+                summaryContainer.innerHTML = '';
+                Object.entries(itemsByName).forEach(([name, arr]) => {
+                    const sorted = arr.sort((a,b)=>a.price-b.price);
+                    const cheapest = sorted[0], expensive = sorted[sorted.length-1];
+                    const diff = expensive.price - cheapest.price;
+                    const card = document.createElement('div');
+                    card.className='bg-white border border-gray-200 rounded-lg p-4 shadow-sm fade-in';
+                    card.innerHTML = `
+                        <h3 class="font-semibold text-lg mb-2">${name}</h3>
+                        <div>Best: $${cheapest.price.toFixed(2)} at ${cheapest.store}</div>
+                        <div>Price range: $${cheapest.price.toFixed(2)} - $${expensive.price.toFixed(2)} ${diff>0?`(+${diff.toFixed(2)})`:''}</div>
+                    `;
+                    summaryContainer.appendChild(card);
+                });
+            }
+
+            async function addItem(item) {
+                try { await db.collection('items').add(item); } 
+                catch(e){ alert('Error adding item: '+e.message); }
+            }
+
+            async function updateItem(id, data) {
+                try { await db.collection('items').doc(id).update(data); } 
+                catch(e){ alert('Error updating item: '+e.message); }
+            }
+
+            async function deleteItemFirestore(id) {
+                try { await db.collection('items').doc(id).delete(); } 
+                catch(e){ alert('Error deleting item: '+e.message); }
+            }
+
+            addItemForm.addEventListener('submit', e => {
+                e.preventDefault();
+                const newItem = {
+                    name: document.getElementById('itemName').value.trim(),
+                    store: document.getElementById('storeName').value.trim(),
+                    price: parseFloat(document.getElementById('itemPrice').value),
+                    date: document.getElementById('itemDate').value || new Date().toISOString().split('T')[0],
+                    notes: document.getElementById('itemNotes').value.trim()
+                };
+                addItem(newItem);
+                addItemForm.reset();
+            });
+
+            filterItem.addEventListener('input', filterItems);
+            filterStore.addEventListener('change', filterItems);
+            filterCheapest.addEventListener('click', () => {
+                const grouped = {};
+                items.forEach(i => { if(!grouped[i.name]||i.price<grouped[i.name].price) grouped[i.name]=i; });
+                renderItems(Object.values(grouped));
+            });
+            resetFilters.addEventListener('click', ()=>{ filterItem.value=''; filterStore.value=''; renderItems(); });
+
+            function filterItems(){
+                const search = filterItem.value.toLowerCase();
+                const store = filterStore.value;
+                const filtered = items.filter(i=>i.name.toLowerCase().includes(search)&&(!store||i.store===store));
+                renderItems(filtered);
+            }
+
+            function addEditDeleteListeners() {
+                document.querySelectorAll('.edit-btn').forEach(btn=>{
+                    btn.onclick=()=>{
+                        const id=btn.dataset.id;
+                        const item=items.find(i=>i.id===id);
+                        if(!item) return;
+                        document.getElementById('editItemId').value=id;
+                        document.getElementById('editItemName').value=item.name;
+                        document.getElementById('editStoreName').value=item.store;
+                        document.getElementById('editItemPrice').value=item.price;
+                        document.getElementById('editItemDate').value=item.date;
+                        document.getElementById('editItemNotes').value=item.notes||'';
+                        editModal.classList.remove('hidden');
+                    };
+                });
+
+                document.querySelectorAll('.delete-btn').forEach(btn=>{
+                    btn.onclick=()=>{ if(confirm('Delete item?')) deleteItemFirestore(btn.dataset.id); };
+                });
+            }
+
+            closeModal.addEventListener('click', ()=> editModal.classList.add('hidden'));
+            editItemForm.addEventListener('submit', e=>{
+                e.preventDefault();
+                const id=document.getElementById('editItemId').value;
+                const data={
+                    name:document.getElementById('editItemName').value.trim(),
+                    store:document.getElementById('editStoreName').value.trim(),
+                    price:parseFloat(document.getElementById('editItemPrice').value),
+                    date:document.getElementById('editItemDate').value||new Date().toISOString().split('T')[0],
+                    notes:document.getElementById('editItemNotes').value.trim()
+                };
+                updateItem(id,data);
+                editModal.classList.add('hidden');
+            });
+
+            quickAddBtn.addEventListener('click', ()=>{ addItemForm.scrollIntoView({behavior:'smooth'}); });
         });
+    </script>
 
-        document.querySelectorAll('.delete-btn').forEach(btn=>{
-            btn.onclick=()=>{ if(confirm('Delete item?')) deleteItemFirestore(btn.dataset.id); };
-        });
-    }
-
-    closeModal.addEventListener('click', ()=> editModal.classList.add('hidden'));
-
-    editItemForm.addEventListener('submit', e=>{
-        e.preventDefault();
-        const id=document.getElementById('editItemId').value;
-        const data={
-            name:document.getElementById('editItemName').value.trim(),
-            store:document.getElementById('editStoreName').value.trim(),
-            price:parseFloat(document.getElementById('editItemPrice').value),
-            date:document.getElementById('editItemDate').value||new Date().toISOString().split('T')[0],
-            notes:document.getElementById('editItemNotes').value.trim()
-        };
-        updateItem(id,data);
-        editModal.classList.add('hidden');
-    });
-
-    quickAddBtn.addEventListener('click', ()=>{ addItemForm.scrollIntoView({behavior:'smooth'}); });
-
-});
-</script>
+</body>
+</html>

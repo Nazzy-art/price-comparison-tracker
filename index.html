@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Price Comparison Tracker</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://unpkg.com/aos@2.3.1/dist/aos.css" rel="stylesheet">
+    <script src="https://unpkg.com/aos@2.3.1/dist/aos.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/feather-icons/dist/feather.min.js"></script>
+    <script src="https://unpkg.com/feather-icons"></script>
+    <style>
+        .fade-in {
+            animation: fadeIn 0.3s ease-in-out;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .price-cell {
+            position: relative;
+        }
+        .best-price {
+            background-color: rgba(74, 222, 128, 0.2);
+            border-left: 4px solid #4ade80;
+        }
+    </style>
+</head>
+<body class="bg-gray-50 min-h-screen">
+    <div class="container mx-auto px-4 py-8">
+        <header class="mb-10 text-center">
+            <h1 class="text-4xl font-bold text-gray-800 mb-2">Price Comparison Tracker</h1>
+            <p class="text-gray-600">Track and compare prices across different stores</p>
+        </header>
+
+        <div class="grid md:grid-cols-2 gap-8 mb-10">
+            <!-- Add New Item Form -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-right">
+                <div class="flex justify-between items-center mb-4">
+                    <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                        <i data-feather="plus-circle" class="mr-2"></i> Add New Item
+                    </h2>
+                    <button id="toggleQuickAdd" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <i data-feather="zap" class="mr-1 w-4 h-4"></i> Quick Add
+                    </button>
+                </div>
+                <form id="addItemForm" class="space-y-4">
+                    <div>
+                        <label for="itemName" class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                        <input type="text" id="itemName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="storeName" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                        <input type="text" id="storeName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="itemPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                        <input type="number" step="0.01" id="itemPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="itemDate" class="block text-sm font-medium text-gray-700 mb-1">Date Purchased</label>
+                        <input type="date" id="itemDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="itemNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                        <textarea id="itemNotes" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                    </div>
+                    <button type="submit" class="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                        <i data-feather="save" class="mr-2"></i> Save Item
+                    </button>
+                </form>
+            </div>
+
+            <!-- Filter Section -->
+            <div class="bg-white rounded-xl shadow-md p-6" data-aos="fade-left">
+                <h2 class="text-xl font-semibold mb-4 text-gray-800 flex items-center">
+                    <i data-feather="filter" class="mr-2"></i> Filter Items
+                </h2>
+                <div class="flex space-x-2 mb-4">
+                    <button id="sortCheapest" class="text-xs bg-green-100 hover:bg-green-200 text-green-800 py-1 px-2 rounded flex items-center">
+                        <i data-feather="arrow-down" class="mr-1 w-3 h-3"></i> Sort by Price
+                    </button>
+                    <button id="sortNewest" class="text-xs bg-blue-100 hover:bg-blue-200 text-blue-800 py-1 px-2 rounded flex items-center">
+                        <i data-feather="calendar" class="mr-1 w-3 h-3"></i> Sort by Date
+                    </button>
+                    <button id="sortStore" class="text-xs bg-purple-100 hover:bg-purple-200 text-purple-800 py-1 px-2 rounded flex items-center">
+                        <i data-feather="shopping-bag" class="mr-1 w-3 h-3"></i> Sort by Store
+                    </button>
+                </div>
+                <div class="space-y-4">
+                    <div>
+                        <label for="filterItem" class="block text-sm font-medium text-gray-700 mb-1">Search by Item</label>
+                        <input type="text" id="filterItem" placeholder="Type item name..." class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                    </div>
+                    <div>
+                        <label for="filterStore" class="block text-sm font-medium text-gray-700 mb-1">Filter by Store</label>
+                        <select id="filterStore" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                            <option value="">All Stores</option>
+                            <!-- Stores will be populated by JS -->
+                        </select>
+                    </div>
+                    <div class="flex items-center space-x-4">
+                        <button id="filterCheapest" class="flex-1 bg-green-600 hover:bg-green-700 text-white py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                            <i data-feather="dollar-sign" class="mr-2"></i> Show Cheapest
+                        </button>
+                        <button id="resetFilters" class="flex-1 bg-gray-200 hover:bg-gray-300 text-gray-800 py-2 px-4 rounded-lg transition duration-200 flex items-center justify-center">
+                            <i data-feather="refresh-ccw" class="mr-2"></i> Reset
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="bg-white rounded-xl shadow-md overflow-hidden" data-aos="fade-up">
+            <div class="px-6 py-4 border-b border-gray-200 flex justify-between items-center">
+                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <i data-feather="list" class="mr-2"></i> Your Items
+                </h2>
+                <div class="text-sm text-gray-500">
+                    <span id="itemCount">0</span> items recorded
+                </div>
+            </div>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Item</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Store</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Price</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Date</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Notes</th>
+                            <th scope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="itemsTable" class="bg-white divide-y divide-gray-200">
+                        <!-- Items will be populated by JS -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- Summary Section -->
+        <div class="mt-10 bg-white rounded-xl shadow-md p-6" data-aos="fade-up">
+            <div class="flex justify-between items-center mb-4">
+                <h2 class="text-xl font-semibold text-gray-800 flex items-center">
+                    <i data-feather="bar-chart-2" class="mr-2"></i> Price Comparison Summary
+                </h2>
+                <div class="flex space-x-2">
+                    <button id="exportData" class="text-sm text-green-600 hover:text-green-800 flex items-center">
+                        <i data-feather="download" class="mr-1 w-4 h-4"></i> Export
+                    </button>
+                    <button id="importData" class="text-sm text-blue-600 hover:text-blue-800 flex items-center">
+                        <i data-feather="upload" class="mr-1 w-4 h-4"></i> Import
+                    </button>
+                </div>
+            </div>
+            <div id="summaryContainer" class="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <!-- Summary cards will be populated by JS -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Edit Modal -->
+    <div id="editModal" class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 hidden">
+        <div class="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-lg font-semibold text-gray-800">Edit Item</h3>
+                <button id="closeModal" class="text-gray-500 hover:text-gray-700">
+                    <i data-feather="x"></i>
+                </button>
+            </div>
+            <form id="editItemForm" class="space-y-4">
+                <input type="hidden" id="editItemId">
+                <div>
+                    <label for="editItemName" class="block text-sm font-medium text-gray-700 mb-1">Item Name</label>
+                    <input type="text" id="editItemName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="editStoreName" class="block text-sm font-medium text-gray-700 mb-1">Store Name</label>
+                    <input type="text" id="editStoreName" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="editItemPrice" class="block text-sm font-medium text-gray-700 mb-1">Price</label>
+                    <input type="number" step="0.01" id="editItemPrice" required class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="editItemDate" class="block text-sm font-medium text-gray-700 mb-1">Date Purchased</label>
+                    <input type="date" id="editItemDate" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500">
+                </div>
+                <div>
+                    <label for="editItemNotes" class="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                    <textarea id="editItemNotes" rows="2" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"></textarea>
+                </div>
+                <div class="flex space-x-3">
+                    <button type="submit" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-2 px-4 rounded-lg transition duration-200">
+                        Save Changes
+                    </button>
+                    <button type="button" id="deleteItem" class="flex-1 bg-red-600 hover:bg-red-700 text-white py-2 px-4 rounded-lg transition duration-200">
+                        Delete
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            AOS.init();
+            feather.replace();
+
+            // Initialize items array from localStorage or empty array
+            let items = JSON.parse(localStorage.getItem('priceComparisonItems')) || [];
+            
+            // DOM elements
+            const addItemForm = document.getElementById('addItemForm');
+            const itemsTable = document.getElementById('itemsTable');
+            const itemCount = document.getElementById('itemCount');
+            const filterItem = document.getElementById('filterItem');
+            const filterStore = document.getElementById('filterStore');
+            const filterCheapest = document.getElementById('filterCheapest');
+            const resetFilters = document.getElementById('resetFilters');
+            const summaryContainer = document.getElementById('summaryContainer');
+            const editModal = document.getElementById('editModal');
+            const closeModal = document.getElementById('closeModal');
+            const editItemForm = document.getElementById('editItemForm');
+            const deleteItem = document.getElementById('deleteItem');
+            
+            // Render functions
+            function renderItems(itemsToRender = items) {
+                itemsTable.innerHTML = '';
+                
+                if (itemsToRender.length === 0) {
+                    itemsTable.innerHTML = `
+                        <tr>
+                            <td colspan="6" class="px-6 py-4 text-center text-gray-500">
+                                No items found. Add your first item above!
+                            </td>
+                        </tr>
+                    `;
+                    itemCount.textContent = '0';
+                    return;
+                }
+                
+                itemCount.textContent = itemsToRender.length;
+                
+                // Find best prices for each item
+                const bestPrices = {};
+                items.forEach(item => {
+                    if (!bestPrices[item.name] || item.price < bestPrices[item.name].price) {
+                        bestPrices[item.name] = {
+                            price: item.price,
+                            store: item.store
+                        };
+                    }
+                });
+                
+                itemsToRender.forEach(item => {
+                    const isBestPrice = bestPrices[item.name] && 
+                                       item.price === bestPrices[item.name].price && 
+                                       item.store === bestPrices[item.name].store;
+                    
+                    const row = document.createElement('tr');
+                    row.className = 'fade-in';
+                    if (isBestPrice) {
+                        row.classList.add('best-price');
+                    }
+                    
+                    row.innerHTML = `
+                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">${item.name}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-700">${item.store}</td>
+                        <td class="px-6 py-4 whitespace-nowrap price-cell">
+                            <span class="font-semibold">$${item.price.toFixed(2)}</span>
+                            ${isBestPrice ? '<span class="ml-2 px-2 py-1 text-xs bg-green-100 text-green-800 rounded-full">Best</span>' : ''}
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-gray-700">${formatDate(item.date)}</td>
+                        <td class="px-6 py-4 text-gray-700 max-w-xs truncate">${item.notes || '-'}</td>
+                        <td class="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                            <button class="text-blue-600 hover:text-blue-900 mr-3 edit-btn" data-id="${item.id}">
+                                <i data-feather="edit" class="w-4 h-4"></i>
+                            </button>
+                            <button class="text-red-600 hover:text-red-900 delete-btn" data-id="${item.id}">
+                                <i data-feather="trash-2" class="w-4 h-4"></i>
+                            </button>
+                        </td>
+                    `;
+                    
+                    itemsTable.appendChild(row);
+                });
+                
+                feather.replace();
+                addEditDeleteListeners();
+                renderStoreFilter();
+                renderSummary();
+            }
+            
+            function renderStoreFilter() {
+                // Get unique stores
+                const stores = [...new Set(items.map(item => item.store))];
+                filterStore.innerHTML = '<option value="">All Stores</option>';
+                
+                stores.forEach(store => {
+                    const option = document.createElement('option');
+                    option.value = store;
+                    option.textContent = store;
+                    filterStore.appendChild(option);
+                });
+            }
+            
+            function renderSummary() {
+                if (items.length === 0) {
+                    summaryContainer.innerHTML = '<p class="text-gray-500">Add items to see price comparisons</p>';
+                    return;
+                }
+                
+                // Group items by name
+                const itemsByName = {};
+                items.forEach(item => {
+                    if (!itemsByName[item.name]) {
+                        itemsByName[item.name] = [];
+                    }
+                    itemsByName[item.name].push(item);
+                });
+                
+                summaryContainer.innerHTML = '';
+                
+                // Create a summary card for each item
+                Object.entries(itemsByName).forEach(([itemName, itemEntries]) => {
+                    // Sort by price ascending
+                    const sortedByPrice = [...itemEntries].sort((a, b) => a.price - b.price);
+                    const cheapest = sortedByPrice[0];
+                    const mostExpensive = sortedByPrice[sortedByPrice.length - 1];
+                    const priceDifference = mostExpensive.price - cheapest.price;
+                    
+                    const card = document.createElement('div');
+                    card.className = 'bg-white border border-gray-200 rounded-lg p-4 shadow-sm fade-in';
+                    card.innerHTML = `
+                        <h3 class="font-semibold text-lg text-gray-800 mb-2">${itemName}</h3>
+                        <div class="mb-3">
+                            <span class="text-sm text-gray-500">Best price:</span>
+                            <div class="flex items-center mt-1">
+                                <span class="font-bold text-green-600">$${cheapest.price.toFixed(2)}</span>
+                                <span class="text-sm text-gray-600 ml-2">at ${cheapest.store}</span>
+                            </div>
+                        </div>
+                        <div class="mb-3">
+                            <span class="text-sm text-gray-500">Price range:</span>
+                            <div class="flex items-center mt-1">
+                                <span class="text-sm text-gray-600">$${cheapest.price.toFixed(2)} - $${mostExpensive.price.toFixed(2)}</span>
+                                <span class="text-sm ${priceDifference > 0 ? 'text-red-500' : 'text-gray-500'} ml-2">
+                                    (${priceDifference > 0 ? `+$${priceDifference.toFixed(2)}` : 'same price'})
+                                </span>
+                            </div>
+                        </div>
+                        <div>
+                            <span class="text-sm text-gray-500">Available at:</span>
+                            <div class="flex flex-wrap gap-1 mt-1">
+                                ${[...new Set(itemEntries.map(item => item.store))].map(store => `
+                                    <span class="text-xs bg-gray-100 text-gray-800 px-2 py-1 rounded">${store}</span>
+                                `).join('')}
+                            </div>
+                        </div>
+                    `;
+                    
+                    summaryContainer.appendChild(card);
+                });
+            }
+            
+            // Helper functions
+            function formatDate(dateString) {
+                if (!dateString) return '-';
+                const date = new Date(dateString);
+                return date.toLocaleDateString();
+            }
+            
+            function generateId() {
+                return Date.now().toString(36) + Math.random().toString(36).substr(2);
+            }
+            
+            // Event listeners
+            addItemForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const newItem = {
+                    id: generateId(),
+                    name: document.getElementById('itemName').value.trim(),
+                    store: document.getElementById('storeName').value.trim(),
+                    price: parseFloat(document.getElementById('itemPrice').value),
+                    date: document.getElementById('itemDate').value || new Date().toISOString().split('T')[0],
+                    notes: document.getElementById('itemNotes').value.trim()
+                };
+                
+                items.push(newItem);
+                localStorage.setItem('priceComparisonItems', JSON.stringify(items));
+                
+                // Reset form
+                addItemForm.reset();
+                
+                // Re-render
+                renderItems();
+                
+                // Show success message
+                const submitBtn = addItemForm.querySelector('button[type="submit"]');
+                const originalText = submitBtn.innerHTML;
+                submitBtn.innerHTML = '<i data-feather="check" class="mr-2"></i> Saved!';
+                setTimeout(() => {
+                    submitBtn.innerHTML = originalText;
+                    feather.replace();
+                }, 2000);
+            });
+            
+            filterItem.addEventListener('input', function() {
+                filterItems();
+            });
+            
+            filterStore.addEventListener('change', function() {
+                filterItems();
+            });
+            
+            filterCheapest.addEventListener('click', function() {
+                // Group by item name and find cheapest for each
+                const itemsByName = {};
+                items.forEach(item => {
+                    if (!itemsByName[item.name] || item.price < itemsByName[item.name].price) {
+                        itemsByName[item.name] = item;
+                    }
+                });
+                
+                const cheapestItems = Object.values(itemsByName);
+                renderItems(cheapestItems);
+            });
+            
+            resetFilters.addEventListener('click', function() {
+                filterItem.value = '';
+                filterStore.value = '';
+                renderItems();
+            });
+            
+            function filterItems() {
+                const itemFilter = filterItem.value.toLowerCase();
+                const storeFilter = filterStore.value;
+                
+                const filtered = items.filter(item => {
+                    const matchesItem = item.name.toLowerCase().includes(itemFilter);
+                    const matchesStore = !storeFilter || item.store === storeFilter;
+                    return matchesItem && matchesStore;
+                });
+                
+                renderItems(filtered);
+            }
+            
+            function addEditDeleteListeners() {
+                document.querySelectorAll('.edit-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const itemId = this.getAttribute('data-id');
+                        const item = items.find(i => i.id === itemId);
+                        
+                        if (item) {
+                            document.getElementById('editItemId').value = item.id;
+                            document.getElementById('editItemName').value = item.name;
+                            document.getElementById('editStoreName').value = item.store;
+                            document.getElementById('editItemPrice').value = item.price;
+                            document.getElementById('editItemDate').value = item.date;
+                            document.getElementById('editItemNotes').value = item.notes || '';
+                            
+                            editModal.classList.remove('hidden');
+                        }
+                    });
+                });
+                
+                document.querySelectorAll('.delete-btn').forEach(btn => {
+                    btn.addEventListener('click', function() {
+                        const itemId = this.getAttribute('data-id');
+                        if (confirm('Are you sure you want to delete this item?')) {
+                            items = items.filter(item => item.id !== itemId);
+                            localStorage.setItem('priceComparisonItems', JSON.stringify(items));
+                            renderItems();
+                        }
+                    });
+                });
+            }
+            
+            closeModal.addEventListener('click', function() {
+                editModal.classList.add('hidden');
+            });
+            
+            editItemForm.addEventListener('submit', function(e) {
+                e.preventDefault();
+                
+                const itemId = document.getElementById('editItemId').value;
+                const itemIndex = items.findIndex(item => item.id === itemId);
+                
+                if (itemIndex !== -1) {
+                    items[itemIndex] = {
+                        ...items[itemIndex],
+                        name: document.getElementById('editItemName').value.trim(),
+                        store: document.getElementById('editStoreName').value.trim(),
+                        price: parseFloat(document.getElementById('editItemPrice').value),
+                        date: document.getElementById('editItemDate').value || new Date().toISOString().split('T')[0],
+                        notes: document.getElementById('editItemNotes').value.trim()
+                    };
+                    
+                    localStorage.setItem('priceComparisonItems', JSON.stringify(items));
+                    editModal.classList.add('hidden');
+                    renderItems();
+                }
+            });
+            
+            deleteItem.addEventListener('click', function() {
+                const itemId = document.getElementById('editItemId').value;
+                if (confirm('Are you sure you want to delete this item?')) {
+                    items = items.filter(item => item.id !== itemId);
+                    localStorage.setItem('priceComparisonItems', JSON.stringify(items));
+                    editModal.classList.add('hidden');
+                    renderItems();
+                }
+            });
+            
+            // Initial render
+            renderItems();
+        });
+    </script>
+</body>
+</html>
